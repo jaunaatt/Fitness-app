@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
 import api from '../services/api.js';
+import { useAuth } from './AuthContext.jsx';
 
 const AppContext = createContext(null);
-
-const DEMO_USER_ID = 1;
 
 /** Mifflin-St Jeor + activity multiplier */
 function calcTargets({ height, weight, age, gender, activity }) {
@@ -25,7 +24,6 @@ function calcTargets({ height, weight, age, gender, activity }) {
 
 const initialState = {
   loading: true,
-  userId:  DEMO_USER_ID,
   userProfile: { height: '', weight: '', age: '', gender: 'male', activity: 'light' },
   nutritionTargets: { calories: 2200, protein: 150 },
   dailyLog:  { food: [], exercises: [] },
@@ -43,6 +41,9 @@ function reducer(state, action) {
 
     case 'HYDRATE':
       return { ...state, ...action.payload };
+
+    case 'RESET':
+      return { ...initialState, loading: false };
 
     case 'SET_PROFILE': {
       const userProfile = { ...state.userProfile, ...action.payload };
@@ -63,6 +64,15 @@ function reducer(state, action) {
       return {
         ...state,
         dailyLog: { ...state.dailyLog, food: [...state.dailyLog.food, action.payload] },
+      };
+
+    case 'REMOVE_FOOD':
+      return {
+        ...state,
+        dailyLog: {
+          ...state.dailyLog,
+          food: state.dailyLog.food.filter((f) => f.id !== action.payload),
+        },
       };
 
     case 'ADD_EXERCISE':
@@ -102,18 +112,26 @@ function reducer(state, action) {
 }
 
 export function AppProvider({ children }) {
+  const { user, isAuthenticated } = useAuth();
   const [state, dispatch] = useReducer(reducer, initialState);
   const bumpTimerRef = useRef(null);
 
-  // Initial data fetch
+  // Re-fetch profile data whenever the authenticated user changes.
+  // On logout (isAuthenticated → false), reset to empty state.
   useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      dispatch({ type: 'RESET' });
+      return;
+    }
+
+    dispatch({ type: 'SET_LOADING', payload: true });
+
     (async () => {
       const [profile, leaderboard] = await Promise.all([
-        api.getProfile(state.userId),
+        api.getProfile(user.id),
         api.getLeaderboard(),
       ]);
 
-      // If we have a saved profile, recalculate targets client-side too
       let profileTargets = {};
       if (profile?.userProfile) {
         const t = calcTargets(profile.userProfile);
@@ -142,12 +160,12 @@ export function AppProvider({ children }) {
                 },
               }
             : {}),
-          leaderboard: leaderboard ?? demoLeaderboard(),
+          leaderboard: leaderboard ?? [],
         },
       });
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.id]);
 
   // Auto-clear streak bump flag after 2.5s
   useEffect(() => {
@@ -160,18 +178,46 @@ export function AppProvider({ children }) {
   }, [state.streakJustBumped]);
 
   const addFood = useCallback(async (food) => {
+    if (!user?.id) return;
+    // Optimistic update — add food to local state immediately for snappy UI
     dispatch({ type: 'ADD_FOOD', payload: food });
     dispatch({ type: 'BUMP_STREAK' });
-    await api.logFood(state.userId, food);
+
+    // Pass client's local date so streak is calculated in the user's timezone
+    const clientDate = new Date().toISOString().slice(0, 10);
+    const updated = await api.logFood(user.id, food, clientDate);
+
+    // If the backend returns the updated user, sync the food list (which now
+    // includes backend-assigned IDs needed for deletion)
+    if (updated?.nutritionTracker?.dailyConsumed) {
+      dispatch({
+        type: 'HYDRATE',
+        payload: {
+          dailyLog: {
+            ...state.dailyLog,
+            food: updated.nutritionTracker.dailyConsumed,
+          },
+        },
+      });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.userId]);
+  }, [user?.id]);
+
+  const removeFood = useCallback(async (foodId) => {
+    // Optimistic update
+    dispatch({ type: 'REMOVE_FOOD', payload: foodId });
+    await api.deleteFoodItem(foodId);
+  }, []);
 
   const addExercise = useCallback(async (session) => {
+    if (!user?.id) return;
     dispatch({ type: 'ADD_EXERCISE', payload: session });
     if (!session.isRestDay) dispatch({ type: 'BUMP_STREAK' });
-    await api.checkInWorkout(state.userId, session);
+
+    const clientDate = new Date().toISOString().slice(0, 10);
+    await api.checkInWorkout(user.id, session, clientDate);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.userId]);
+  }, [user?.id]);
 
   const removeExercise = useCallback((id) => {
     dispatch({ type: 'REMOVE_EXERCISE', payload: id });
@@ -179,10 +225,12 @@ export function AppProvider({ children }) {
 
   const saveProfile = useCallback(async (profile) => {
     dispatch({ type: 'SET_PROFILE', payload: profile });
-    await api.saveProfile({ username: 'You', ...profile });
+    // Profile (height/weight/age etc.) is currently stored client-side only
+    // and recalculated via Mifflin-St Jeor. A future enhancement would persist
+    // these to a /api/users/me/profile endpoint.
   }, []);
 
-  const value = { state, dispatch, addFood, addExercise, removeExercise, saveProfile };
+  const value = { state, dispatch, addFood, removeFood, addExercise, removeExercise, saveProfile };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
@@ -190,14 +238,4 @@ export function useApp() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useApp must be used within AppProvider');
   return ctx;
-}
-
-function demoLeaderboard() {
-  return [
-    { id: 1, username: 'AliceFit',      totalPoints: 980, currentStreak: 42, workoutsThisWeek: 6 },
-    { id: 2, username: 'BobLift',        totalPoints: 860, currentStreak: 28, workoutsThisWeek: 5 },
-    { id: 3, username: 'CharlieActive',  totalPoints: 710, currentStreak: 15, workoutsThisWeek: 4 },
-    { id: 4, username: 'DanaRuns',       totalPoints: 540, currentStreak: 9,  workoutsThisWeek: 3 },
-    { id: 5, username: 'You',            totalPoints: 120, currentStreak: 3,  workoutsThisWeek: 2 },
-  ];
 }

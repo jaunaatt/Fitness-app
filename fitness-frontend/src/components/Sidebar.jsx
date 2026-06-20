@@ -1,7 +1,8 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutGrid, Apple, Dumbbell, Trophy, User, Flame, Zap } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LayoutGrid, Apple, Dumbbell, Trophy, User, Flame, Zap, LogOut } from 'lucide-react';
 import { useApp } from '../context/AppContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import StreakFlame from './StreakFlame.jsx';
 
 const navItems = [
@@ -14,7 +15,14 @@ const navItems = [
 
 export default function Sidebar() {
   const { state } = useApp();
+  const { user, isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
   const streak = state.streak.currentStreak;
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
     <aside className="hidden md:flex md:flex-col w-62 shrink-0 h-screen sticky top-0 bg-bg-panel border-r border-white/[0.06] py-6">
@@ -56,8 +64,26 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Streak display at bottom */}
+      {/* Bottom: streak + user info + logout */}
       <div className="px-6 pt-5 mt-auto border-t border-white/[0.06]">
+        {isAuthenticated && user && (
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-accent-blue/15 border border-accent-blue/20 flex items-center justify-center shrink-0">
+                <User size={13} className="text-accent-blue" />
+              </div>
+              <span className="font-body text-xs text-white truncate">{user.username}</span>
+            </div>
+            <button
+              id="sidebar-logout"
+              onClick={handleLogout}
+              aria-label="Log out"
+              className="p-1.5 rounded-lg text-text-muted hover:text-accent-ember hover:bg-accent-ember/10 transition-all"
+            >
+              <LogOut size={14} />
+            </button>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-1">
           <span className="font-body text-[11px] text-text-faint uppercase tracking-widest">Your Streak</span>
           <Zap size={11} className="text-text-faint" />

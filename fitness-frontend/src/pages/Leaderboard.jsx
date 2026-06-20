@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Flame } from 'lucide-react';
 import { useApp } from '../context/AppContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import LeaderboardRow from '../components/LeaderboardRow.jsx';
 
 // Podium metadata
@@ -91,6 +92,7 @@ function PodiumBlock({ user, podium, rank, sortBy, delay }) {
 
 export default function Leaderboard() {
   const { state } = useApp();
+  const { user } = useAuth();
   const [sortBy, setSortBy] = useState('streak');
 
   const sorted = [...state.leaderboard].sort((a, b) => {
@@ -165,7 +167,7 @@ export default function Leaderboard() {
               username={u.username}
               streakCount={u.currentStreak}
               points={u.totalPoints}
-              isCurrentUser={u.username === 'You'}
+              isCurrentUser={u.id === user?.id}
             />
           ))
         )}

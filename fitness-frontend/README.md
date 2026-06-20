@@ -11,42 +11,34 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-Network access was unavailable in the build environment this was created in,
-so `npm install` has not been run/verified here — running it locally will
-pull all listed dependencies cleanly (they're all stable, widely-used
-packages).
+## Backend Connection & Authentication
 
-## Connecting a backend
+This app is wired to a Spring Boot backend with **JWT Authentication**.
 
-By default the app falls back to in-memory demo state when no API responds
-(see `src/services/api.js`). To point it at a real backend, set:
-
-```bash
-# .env.local
-VITE_API_URL=http://localhost:8080/api
-```
-
-This maps to the endpoints in the spec: `/users`, `/nutrition/*`,
-`/gym` (via `/users/:id/check-in-workout`), `/leaderboard`.
+1. Start the backend (`mvnw spring-boot:run` in `fitness-backend/`).
+2. The frontend defaults to `http://localhost:8080/api` for API calls. If you deploy it, set:
+   ```bash
+   # .env.local or Netlify Environment Variables
+   VITE_API_URL=https://your-backend-url/api
+   ```
+3. Use the `/register` page to create an account, or `/login` if you have one.
+4. JWT tokens are stored in `sessionStorage` and sent with all requests via an Axios interceptor.
 
 ## Structure
 
 ```
 src/
   components/   StreakFlame, ProgressRing, ExerciseCard, LeaderboardRow,
-                Sidebar, BottomNav, Sheet, Primitives (Card/Skeleton/EmptyState)
-  context/      AppContext — React Context + useReducer for global state
-  services/     api.js — axios layer, fails gracefully to null
-  pages/        Dashboard, Profile, Nutrition, Gym, Leaderboard
+                Sidebar, BottomNav, Sheet, Primitives (Card/Skeleton/EmptyState),
+                PrivateRoute (Route guard)
+  context/      AuthContext (JWT management), AppContext (global state + API syncing)
+  services/     api.js — axios layer with JWT interceptor + 401 redirect
+  pages/        Login, Register, Dashboard, Profile, Nutrition, Gym, Leaderboard
 ```
 
-## Notes on what's mocked vs wired
+## Features
 
-- All five pages are functional against local state immediately (no backend
-  required to click around).
-- `addFood` / `addExercise` / `saveProfile` write to local state immediately
-  (optimistic) *and* fire the matching API call in the background.
-- Leaderboard and profile hydrate from the API on load if reachable, else
-  fall back to demo data.
-- The 7-day nutrition history chart uses static demo data — wire it to
-  `/nutrition/history` if/when that endpoint exists.
+- **Full Auth Flow**: Register, Login, Logout, and Protected Routes.
+- **Gym Logging**: Real-time logging of exercise variations, sets, and reps with full backend history syncing.
+- **Nutrition**: Calorie and protein tracking with daily reset capability and item deletion.
+- **Leaderboard**: Real-time ranking based on points, streaks, and workouts.

@@ -7,34 +7,106 @@ import Profile from './pages/Profile.jsx';
 import Nutrition from './pages/Nutrition.jsx';
 import Gym from './pages/Gym.jsx';
 import Leaderboard from './pages/Leaderboard.jsx';
+import Login from './pages/Login.jsx';
+import Register from './pages/Register.jsx';
+import PrivateRoute from './components/PrivateRoute.jsx';
 import Confetti from './components/Confetti.jsx';
 import { useApp } from './context/AppContext.jsx';
+import { useAuth } from './context/AuthContext.jsx';
 
-export default function App() {
+/**
+ * Layout shell for authenticated pages (sidebar + bottom nav).
+ */
+function AppShell({ children }) {
   const { state } = useApp();
-
   return (
     <div className="flex bg-bg-deep min-h-screen">
-      {/* Confetti fires on streak bump */}
       <Confetti active={state.streakJustBumped} />
-
-      {/* Sidebar — desktop only */}
       <Sidebar />
-
-      {/* Main content area */}
       <main className="flex-1 min-w-0 overflow-y-auto h-screen">
-        <Routes>
-          <Route path="/"             element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard"    element={<Dashboard />} />
-          <Route path="/nutrition"    element={<Nutrition />} />
-          <Route path="/gym"          element={<Gym />} />
-          <Route path="/leaderboard"  element={<Leaderboard />} />
-          <Route path="/profile"      element={<Profile />} />
-        </Routes>
+        {children}
       </main>
-
-      {/* Bottom nav — mobile only */}
       <BottomNav />
     </div>
+  );
+}
+
+export default function App() {
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <Routes>
+      {/* ── Public routes ──────────────────────────────────────────── */}
+      <Route
+        path="/login"
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />}
+      />
+      <Route
+        path="/register"
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />}
+      />
+
+      {/* Leaderboard is publicly accessible (read-only rankings) */}
+      <Route
+        path="/leaderboard"
+        element={
+          <AppShell>
+            <Leaderboard />
+          </AppShell>
+        }
+      />
+
+      {/* ── Protected routes ───────────────────────────────────────── */}
+      <Route
+        path="/dashboard"
+        element={
+          <PrivateRoute>
+            <AppShell>
+              <Dashboard />
+            </AppShell>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/nutrition"
+        element={
+          <PrivateRoute>
+            <AppShell>
+              <Nutrition />
+            </AppShell>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/gym"
+        element={
+          <PrivateRoute>
+            <AppShell>
+              <Gym />
+            </AppShell>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <PrivateRoute>
+            <AppShell>
+              <Profile />
+            </AppShell>
+          </PrivateRoute>
+        }
+      />
+
+      {/* Default redirect */}
+      <Route
+        path="/"
+        element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
+      />
+      <Route
+        path="*"
+        element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
+      />
+    </Routes>
   );
 }

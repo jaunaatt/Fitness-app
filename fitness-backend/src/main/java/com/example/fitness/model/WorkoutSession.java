@@ -2,6 +2,8 @@ package com.example.fitness.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 
 @Entity
 @Table(name = "workout_sessions")
@@ -11,12 +13,32 @@ public class WorkoutSession {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Muscle group focus is required")
     @Column(name = "muscle_group_focus", nullable = false)
     private String muscleGroupFocus;
+
+    /**
+     * Human-readable exercise name as entered by the user (e.g. "Bench Press — Wide Grip").
+     * Stored separately from muscleGroupFocus so the history tab can display the full
+     * exercise variation name rather than a generic muscle-group label.
+     */
+    @Column(name = "variation_name")
+    private String variationName;
+
+    /** Number of sets performed. Nullable — not all sessions track sets/reps. */
+    @PositiveOrZero(message = "Sets must be zero or positive")
+    @Column(name = "sets")
+    private Integer sets;
+
+    /** Number of reps per set. Nullable — not all sessions track sets/reps. */
+    @PositiveOrZero(message = "Reps must be zero or positive")
+    @Column(name = "reps")
+    private Integer reps;
 
     @Column(name = "is_rest_day", nullable = false)
     private boolean isRestDay;
 
+    @PositiveOrZero(message = "Duration must be zero or positive")
     @Column(name = "duration_minutes", nullable = false)
     private int durationMinutes;
 
@@ -43,43 +65,27 @@ public class WorkoutSession {
     }
 
     // Getters and Setters
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public String getMuscleGroupFocus() { return muscleGroupFocus; }
+    public void setMuscleGroupFocus(String muscleGroupFocus) { this.muscleGroupFocus = muscleGroupFocus; }
 
-    public String getMuscleGroupFocus() {
-        return muscleGroupFocus;
-    }
+    public String getVariationName() { return variationName; }
+    public void setVariationName(String variationName) { this.variationName = variationName; }
 
-    public void setMuscleGroupFocus(String muscleGroupFocus) {
-        this.muscleGroupFocus = muscleGroupFocus;
-    }
+    public Integer getSets() { return sets; }
+    public void setSets(Integer sets) { this.sets = sets; }
 
-    public boolean isRestDay() {
-        return isRestDay;
-    }
+    public Integer getReps() { return reps; }
+    public void setReps(Integer reps) { this.reps = reps; }
 
-    public void setRestDay(boolean restDay) {
-        isRestDay = restDay;
-    }
+    public boolean isRestDay() { return isRestDay; }
+    public void setRestDay(boolean restDay) { isRestDay = restDay; }
 
-    public int getDurationMinutes() {
-        return durationMinutes;
-    }
+    public int getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(int durationMinutes) { this.durationMinutes = durationMinutes; }
 
-    public void setDurationMinutes(int durationMinutes) {
-        this.durationMinutes = durationMinutes;
-    }
-
-    public WorkoutTracker getWorkoutTracker() {
-        return workoutTracker;
-    }
-
-    public void setWorkoutTracker(WorkoutTracker workoutTracker) {
-        this.workoutTracker = workoutTracker;
-    }
+    public WorkoutTracker getWorkoutTracker() { return workoutTracker; }
+    public void setWorkoutTracker(WorkoutTracker workoutTracker) { this.workoutTracker = workoutTracker; }
 }

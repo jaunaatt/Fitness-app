@@ -8,6 +8,7 @@ import ProgressRing from '../components/ProgressRing.jsx';
 import ExerciseCard from '../components/ExerciseCard.jsx';
 import LeaderboardRow from '../components/LeaderboardRow.jsx';
 import { Card, Skeleton, EmptyState, SectionHeader } from '../components/Primitives.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 // Staggered card animation
 const cardVariants = {
@@ -29,6 +30,7 @@ function streakCardClass(count) {
 
 export default function Dashboard() {
   const { state } = useApp();
+  const { user } = useAuth();
   const { loading, streak, nutritionTargets, dailyLog, leaderboard } = state;
 
   const caloriesConsumed = dailyLog.food.reduce(
@@ -219,9 +221,7 @@ export default function Dashboard() {
                     rank={i + 1}
                     username={u.username}
                     streakCount={u.currentStreak}
-                    points={u.totalPoints}
-                    isCurrentUser={u.username === 'You'}
-                    compact
+                    isCurrentUser={u.id === user?.id}
                   />
                 ))}
               </div>

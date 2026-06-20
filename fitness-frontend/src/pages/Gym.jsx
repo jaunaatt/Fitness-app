@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Dumbbell, Plus, ChevronDown, ChevronRight, Calendar } from 'lucide-react';
+import { Dumbbell, Plus, ChevronDown, ChevronRight, Calendar, Loader2 } from 'lucide-react';
+import api from '../services/api.js';
 import { useApp } from '../context/AppContext.jsx';
 import Sheet from '../components/Sheet.jsx';
 import ExerciseCard from '../components/ExerciseCard.jsx';
@@ -49,24 +50,7 @@ function Stepper({ label, value, onChange, min = 0 }) {
   );
 }
 
-// Past sessions mock (history tab)
-const PAST_SESSIONS = [
-  {
-    date: 'June 19, 2026',
-    exercises: [
-      { id: 'h1', variationName: 'Bench Press — Wide Grip', sets: 4, reps: 8 },
-      { id: 'h2', variationName: 'Incline Dumbbell Press', sets: 3, reps: 10 },
-    ],
-  },
-  {
-    date: 'June 17, 2026',
-    exercises: [
-      { id: 'h3', variationName: 'Squat — High Bar', sets: 5, reps: 5 },
-      { id: 'h4', variationName: 'Romanian Deadlift', sets: 3, reps: 12 },
-      { id: 'h5', variationName: 'Leg Press', sets: 3, reps: 15 },
-    ],
-  },
-];
+
 
 function HistoryAccordion({ session }) {
   const [open, setOpen] = useState(false);
@@ -122,6 +106,25 @@ export default function Gym() {
   const [toast, setToast] = useState(false);
   const [form,  setForm]  = useState({ variationName: '', sets: 3, reps: 10 });
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    if (tab === 'history') {
+      setLoadingHistory(true);
+      api.getGymHistory().then((data) => {
+        if (data && data.length > 0) {
+          // Since the backend doesn't return dates for individual exercises yet,
+          // we group all history into a single block for now.
+          setHistory([{ date: 'All Recorded Exercises', exercises: data.reverse() }]);
+        } else {
+          setHistory([]);
+        }
+        setLoadingHistory(false);
+      });
+    }
+  }, [tab]);
 
   const filtered = form.variationName.length > 1
     ? EXERCISE_SUGGESTIONS.filter((s) =>
@@ -216,7 +219,11 @@ export default function Gym() {
       ) : (
         /* History tab */
         <div className="flex flex-col gap-3">
-          {PAST_SESSIONS.length === 0 ? (
+          {loadingHistory ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="animate-spin text-text-faint" size={24} />
+            </div>
+          ) : history.length === 0 ? (
             <Card>
               <EmptyState
                 icon={Calendar}
@@ -225,7 +232,7 @@ export default function Gym() {
               />
             </Card>
           ) : (
-            PAST_SESSIONS.map((session, i) => (
+            history.map((session, i) => (
               <HistoryAccordion key={i} session={session} />
             ))
           )}

@@ -103,7 +103,7 @@ function ChartTooltip({ active, payload, label }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function Nutrition() {
-  const { state, addFood } = useApp();
+  const { state, addFood, removeFood } = useApp();
   const [tab,   setTab]    = useState('today');
   const [open,  setOpen]   = useState(false);
   const [toast, setToast]  = useState(false);
@@ -209,7 +209,7 @@ export default function Nutrition() {
             ) : (
               <AnimatePresence>
                 {state.dailyLog.food.map((f, i) => (
-                  <FoodEntry key={i} entry={f} index={i} />
+                  <FoodEntry key={i} entry={f} index={i} onDelete={() => removeFood(f.id)} />
                 ))}
               </AnimatePresence>
             )}
