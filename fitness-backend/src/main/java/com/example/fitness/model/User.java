@@ -45,7 +45,7 @@ public class User implements UserDetails {
     @Column(name = "last_log_date")
     private LocalDate lastLogDate;
 
-    @Column(name = "leaderboard_visible", nullable = false)
+    @Column(name = "leaderboard_visible", nullable = false, columnDefinition = "boolean default true")
     private boolean leaderboardVisible = true;
 
     // ── Physical profile fields ────────────────────────────────────────────────
