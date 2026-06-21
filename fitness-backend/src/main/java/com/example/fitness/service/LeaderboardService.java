@@ -25,6 +25,7 @@ public class LeaderboardService {
 
     public List<User> sortUsersByPoints() {
         List<User> users = userRepository.findAll();
+        users.removeIf(u -> !u.isLeaderboardVisible());
         // Sort in descending order of points
         users.sort((u1, u2) -> Integer.compare(u2.getTotalPoints(), u1.getTotalPoints()));
         return users;

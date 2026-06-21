@@ -60,4 +60,29 @@ public class FoodItemController {
         foodItemRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Edit a food item belonging to the authenticated user.
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<FoodItem> updateFoodItem(
+            @PathVariable Long id,
+            @RequestBody FoodItem updatedItem,
+            @AuthenticationPrincipal User principal) {
+
+        FoodItem item = foodItemRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Food item not found"));
+
+        if (item.getNutritionTracker() == null ||
+                item.getNutritionTracker().getUser() == null ||
+                !item.getNutritionTracker().getUser().getId().equals(principal.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only edit your own food entries");
+        }
+
+        item.setName(updatedItem.getName());
+        item.setCalories(updatedItem.getCalories());
+        item.setProteinGram(updatedItem.getProteinGram());
+        
+        return ResponseEntity.ok(foodItemRepository.save(item));
+    }
 }

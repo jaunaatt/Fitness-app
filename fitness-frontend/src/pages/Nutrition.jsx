@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, Cell,
 } from 'recharts';
-import { Apple, Plus, Trash2 } from 'lucide-react';
+import { Apple, Plus, Trash2, Pencil } from 'lucide-react';
 import { useApp } from '../context/AppContext.jsx';
 import Sheet from '../components/Sheet.jsx';
 import { Card, EmptyState, SectionHeader, Toast } from '../components/Primitives.jsx';
@@ -62,7 +62,7 @@ function ProgressBar({ label, value, max, color, unit, className = '' }) {
 }
 
 // ─── FoodEntry ────────────────────────────────────────────────────────────────
-function FoodEntry({ entry, onDelete, index }) {
+function FoodEntry({ entry, onEdit, onDelete, index }) {
   return (
     <motion.div
       initial={{ opacity: 0, x: -12 }}
@@ -77,7 +77,17 @@ function FoodEntry({ entry, onDelete, index }) {
           {(entry.calories ?? 0).toLocaleString()} kcal · {(entry.proteinGram ?? entry.protein ?? 0)}g protein
         </p>
       </div>
-      {onDelete && (
+      <div className="flex items-center gap-1">
+        {onEdit && (
+          <button
+            onClick={() => onEdit(entry)}
+            aria-label="Edit food entry"
+            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-text-dim hover:text-accent-blue hover:bg-accent-blue/10 transition-all"
+          >
+            <Pencil size={14} />
+          </button>
+        )}
+        {onDelete && (
         <button
           onClick={() => onDelete(entry)}
           aria-label="Remove food entry"
@@ -85,7 +95,8 @@ function FoodEntry({ entry, onDelete, index }) {
         >
           <Trash2 size={14} />
         </button>
-      )}
+        )}
+      </div>
     </motion.div>
   );
 }
@@ -103,10 +114,12 @@ function ChartTooltip({ active, payload, label }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function Nutrition() {
-  const { state, addFood, removeFood } = useApp();
+  const { state, addFood, removeFood, editFood } = useApp();
   const [tab,   setTab]    = useState('today');
   const [open,  setOpen]   = useState(false);
   const [toast, setToast]  = useState(false);
+  const [toastMsg, setToastMsg] = useState('Food logged ✓');
+  const [editingId, setEditingId] = useState(null);
   const [form,  setForm]   = useState({ name: '', calories: '', protein: '' });
   const [suggestion, setSuggestion] = useState(null);
 
@@ -121,14 +134,31 @@ export default function Nutrition() {
       ).slice(0, 5)
     : [];
 
-  const handleAdd = async () => {
+  const handleEditClick = (f) => {
+    setForm({ name: f.name, calories: f.calories ?? '', protein: f.proteinGram ?? f.protein ?? '' });
+    setEditingId(f.id);
+    setOpen(true);
+  };
+
+  const handleSave = async () => {
     if (!form.name || !form.calories) return;
-    await addFood({
-      name:       form.name,
-      calories:   +form.calories,
-      proteinGram:+form.protein || 0,
-    });
+    if (editingId) {
+      await editFood(editingId, {
+        name:       form.name,
+        calories:   +form.calories,
+        proteinGram:+form.protein || 0,
+      });
+      setToastMsg('Food updated ✓');
+    } else {
+      await addFood({
+        name:       form.name,
+        calories:   +form.calories,
+        proteinGram:+form.protein || 0,
+      });
+      setToastMsg('Food logged ✓');
+    }
     setForm({ name: '', calories: '', protein: '' });
+    setEditingId(null);
     setOpen(false);
     setToast(true);
     setTimeout(() => setToast(false), 2500);
@@ -136,7 +166,7 @@ export default function Nutrition() {
 
   return (
     <div className="px-5 py-6 md:px-8 md:py-8 max-w-3xl mx-auto pb-28 md:pb-10">
-      <Toast message="Food logged ✓" visible={toast} />
+      <Toast message={toastMsg} visible={toast} />
 
       {/* Page header */}
       <div className="flex items-center justify-between mb-6">
@@ -150,7 +180,7 @@ export default function Nutrition() {
         </div>
         <motion.button
           whileTap={{ scale: 0.95 }}
-          onClick={() => setOpen(true)}
+          onClick={() => { setForm({ name: '', calories: '', protein: '' }); setEditingId(null); setOpen(true); }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-blue text-white font-body text-sm font-medium hover:bg-accent-blue/90 transition-colors shadow-glow-blue/30"
         >
           <Plus size={16} />
@@ -209,7 +239,7 @@ export default function Nutrition() {
             ) : (
               <AnimatePresence>
                 {state.dailyLog.food.map((f, i) => (
-                  <FoodEntry key={i} entry={f} index={i} onDelete={() => removeFood(f.id)} />
+                  <FoodEntry key={i} entry={f} index={i} onEdit={handleEditClick} onDelete={() => removeFood(f.id)} />
                 ))}
               </AnimatePresence>
             )}
@@ -257,7 +287,7 @@ export default function Nutrition() {
       )}
 
       {/* ── Add Food Sheet ────────────────────────────────────────────────────── */}
-      <Sheet open={open} onClose={() => { setOpen(false); setSuggestion(null); }} title="Log Food">
+      <Sheet open={open} onClose={() => { setOpen(false); setSuggestion(null); setEditingId(null); }} title={editingId ? "Edit Food" : "Log Food"}>
         <div className="flex flex-col gap-3">
           {/* Name field with autocomplete */}
           <div className="relative">
@@ -330,11 +360,11 @@ export default function Nutrition() {
 
           <motion.button
             whileTap={{ scale: 0.97 }}
-            onClick={handleAdd}
+            onClick={handleSave}
             disabled={!form.name || !form.calories}
             className="mt-2 w-full py-3.5 rounded-xl bg-accent-blue text-white font-display font-bold text-sm hover:bg-accent-blue/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-glow-blue/20"
           >
-            Add to Log
+            {editingId ? "Save Changes" : "Add to Log"}
           </motion.button>
         </div>
       </Sheet>

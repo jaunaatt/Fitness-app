@@ -100,10 +100,12 @@ function HistoryAccordion({ session }) {
 }
 
 export default function Gym() {
-  const { state, addExercise, removeExercise } = useApp();
+  const { state, addExercise, removeExercise, editExercise } = useApp();
   const [open,  setOpen]  = useState(false);
   const [tab,   setTab]   = useState('today');
   const [toast, setToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState('Exercise logged ✓');
+  const [editingId, setEditingId] = useState(null);
   const [form,  setForm]  = useState({ variationName: '', sets: 3, reps: 10 });
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -115,9 +117,16 @@ export default function Gym() {
       setLoadingHistory(true);
       api.getGymHistory().then((data) => {
         if (data && data.length > 0) {
-          // Since the backend doesn't return dates for individual exercises yet,
-          // we group all history into a single block for now.
-          setHistory([{ date: 'All Recorded Exercises', exercises: data.reverse() }]);
+          const grouped = data.reduce((acc, curr) => {
+            const d = curr.sessionDate || 'Legacy Data';
+            if (!acc[d]) acc[d] = [];
+            acc[d].push(curr);
+            return acc;
+          }, {});
+          
+          const sortedKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+          const finalHistory = sortedKeys.map(k => ({ date: k, exercises: grouped[k].reverse() }));
+          setHistory(finalHistory);
         } else {
           setHistory([]);
         }
@@ -132,18 +141,35 @@ export default function Gym() {
       ).slice(0, 6)
     : [];
 
+  const handleEditClick = (ex) => {
+    setForm({ variationName: ex.variationName ?? ex.muscleGroupFocus, sets: ex.sets ?? 3, reps: ex.reps ?? 10 });
+    setEditingId(ex.id);
+    setOpen(true);
+    setShowSuggestions(false);
+  };
+
   const handleSave = async () => {
     if (!form.variationName) return;
-    await addExercise({
-      id:               Date.now(),
+    
+    const data = {
       variationName:    form.variationName,
       muscleGroupFocus: form.variationName,
       sets:             form.sets,
       reps:             form.reps,
       durationMinutes:  form.sets * form.reps,
       isRestDay:        false,
-    });
+    };
+
+    if (editingId) {
+      await editExercise(editingId, data);
+      setToastMsg('Exercise updated ✓');
+    } else {
+      await addExercise({ ...data, id: Date.now() });
+      setToastMsg('Exercise logged ✓');
+    }
+    
     setForm({ variationName: '', sets: 3, reps: 10 });
+    setEditingId(null);
     setOpen(false);
     setToast(true);
     setTimeout(() => setToast(false), 2500);
@@ -151,7 +177,7 @@ export default function Gym() {
 
   return (
     <div className="px-5 py-6 md:px-8 md:py-8 max-w-3xl mx-auto pb-28 md:pb-10">
-      <Toast message="Exercise logged ✓" visible={toast} />
+      <Toast message={toastMsg} visible={toast} />
 
       {/* Page header */}
       <div className="flex items-center justify-between mb-6">
@@ -165,7 +191,7 @@ export default function Gym() {
         </div>
         <motion.button
           whileTap={{ scale: 0.95 }}
-          onClick={() => { setOpen(true); setShowSuggestions(false); }}
+          onClick={() => { setForm({ variationName: '', sets: 3, reps: 10 }); setEditingId(null); setOpen(true); setShowSuggestions(false); }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-blue text-white font-body text-sm font-medium hover:bg-accent-blue/90 transition-colors shadow-glow-blue/30"
         >
           <Plus size={16} />
@@ -209,6 +235,7 @@ export default function Gym() {
                     variationName={ex.variationName ?? ex.muscleGroupFocus}
                     sets={ex.sets ?? '—'}
                     reps={ex.reps ?? '—'}
+                    onEdit={() => handleEditClick(ex)}
                     onDelete={() => removeExercise(ex.id)}
                   />
                 ))}
@@ -240,7 +267,7 @@ export default function Gym() {
       )}
 
       {/* ── Log Exercise Sheet ──────────────────────────────────────────────── */}
-      <Sheet open={open} onClose={() => setOpen(false)} title="Log Exercise">
+      <Sheet open={open} onClose={() => { setOpen(false); setEditingId(null); setShowSuggestions(false); }} title={editingId ? "Edit Exercise" : "Log Exercise"}>
         <div className="flex flex-col gap-4">
           {/* Exercise name with autocomplete */}
           <div className="relative">
@@ -317,7 +344,7 @@ export default function Gym() {
             disabled={!form.variationName}
             className="w-full py-3.5 rounded-xl bg-accent-blue text-white font-display font-bold text-sm hover:bg-accent-blue/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Save Exercise
+            {editingId ? "Save Changes" : "Save Exercise"}
           </motion.button>
         </div>
       </Sheet>

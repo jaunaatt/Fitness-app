@@ -65,6 +65,8 @@ public class SecurityConfig {
                     .requestMatchers("/api/auth/**").permitAll()
                     // Leaderboard GET — public read (rankings are not sensitive)
                     .requestMatchers(HttpMethod.GET, "/api/leaderboard/**").permitAll()
+                    // Health check
+                    .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                     // Everything else requires authentication
                     .anyRequest().authenticated()
             )
@@ -77,7 +79,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(allowedOrigin));
+        config.setAllowedOrigins(java.util.Arrays.asList(allowedOrigin.split(",")));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

@@ -42,6 +42,16 @@ public class WorkoutSession {
     @Column(name = "duration_minutes", nullable = false)
     private int durationMinutes;
 
+    @Column(name = "session_date")
+    private java.time.LocalDate sessionDate;
+
+    @PrePersist
+    protected void onCreate() {
+        if (sessionDate == null) {
+            sessionDate = java.time.LocalDate.now();
+        }
+    }
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workout_tracker_id")
     @JsonBackReference
@@ -85,6 +95,9 @@ public class WorkoutSession {
 
     public int getDurationMinutes() { return durationMinutes; }
     public void setDurationMinutes(int durationMinutes) { this.durationMinutes = durationMinutes; }
+
+    public java.time.LocalDate getSessionDate() { return sessionDate; }
+    public void setSessionDate(java.time.LocalDate sessionDate) { this.sessionDate = sessionDate; }
 
     public WorkoutTracker getWorkoutTracker() { return workoutTracker; }
     public void setWorkoutTracker(WorkoutTracker workoutTracker) { this.workoutTracker = workoutTracker; }

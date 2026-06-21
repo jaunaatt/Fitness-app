@@ -59,4 +59,36 @@ public class WorkoutSessionController {
         workoutSessionRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Edit a workout session belonging to the authenticated user.
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<WorkoutSession> updateWorkoutSession(
+            @PathVariable Long id,
+            @RequestBody WorkoutSession updatedSession,
+            @AuthenticationPrincipal User principal) {
+
+        WorkoutSession session = workoutSessionRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout session not found"));
+
+        if (session.getWorkoutTracker() == null ||
+                session.getWorkoutTracker().getUser() == null ||
+                !session.getWorkoutTracker().getUser().getId().equals(principal.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only edit your own workout sessions");
+        }
+
+        session.setDurationMinutes(updatedSession.getDurationMinutes());
+        session.setMuscleGroupFocus(updatedSession.getMuscleGroupFocus());
+        session.setRestDay(updatedSession.isRestDay());
+        session.setVariationName(updatedSession.getVariationName());
+        session.setSets(updatedSession.getSets());
+        session.setReps(updatedSession.getReps());
+        
+        if (!session.isValidSession()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid session data");
+        }
+
+        return ResponseEntity.ok(workoutSessionRepository.save(session));
+    }
 }

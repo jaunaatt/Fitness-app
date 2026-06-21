@@ -24,8 +24,10 @@ function calcTargets({ height, weight, age, gender, activity }) {
 
 const initialState = {
   loading: true,
-  userProfile: { height: '', weight: '', age: '', gender: 'male', activity: 'light' },
+  userProfile: { height: '', weight: '', age: '', gender: 'male', activity: 'light', leaderboardVisible: true },
   nutritionTargets: { calories: 2200, protein: 150 },
+  useManualTarget: false,         // if true, backend targets override Mifflin-St Jeor
+  weeklyWorkoutTarget: 4,         // mirrors WorkoutTracker.weeklyTargetDays
   dailyLog:  { food: [], exercises: [] },
   streak:    { currentStreak: 0, lastLogDate: null },
   leaderboard: [],
@@ -90,8 +92,26 @@ function reducer(state, action) {
         },
       };
 
+    case 'UPDATE_FOOD':
+      return {
+        ...state,
+        dailyLog: {
+          ...state.dailyLog,
+          food: state.dailyLog.food.map((f) => f.id === action.payload.id ? { ...f, ...action.payload } : f),
+        },
+      };
+
+    case 'UPDATE_EXERCISE':
+      return {
+        ...state,
+        dailyLog: {
+          ...state.dailyLog,
+          exercises: state.dailyLog.exercises.map((e) => e.id === action.payload.id ? { ...e, ...action.payload } : e),
+        },
+      };
+
     case 'BUMP_STREAK': {
-      const today = new Date().toDateString();
+      const today = new Date().toISOString().slice(0, 10);
       if (state.streak.lastLogDate === today) return state;
       return {
         ...state,
@@ -102,6 +122,22 @@ function reducer(state, action) {
 
     case 'CLEAR_STREAK_BUMP':
       return { ...state, streakJustBumped: false };
+
+    case 'SET_MANUAL_TARGET':
+      return {
+        ...state,
+        useManualTarget: true,
+        nutritionTargets: {
+          calories: action.payload.calories ?? state.nutritionTargets.calories,
+          protein:  action.payload.protein  ?? state.nutritionTargets.protein,
+        },
+      };
+
+    case 'SET_AUTO_TARGET':
+      return { ...state, useManualTarget: false };
+
+    case 'SET_WEEKLY_TARGET':
+      return { ...state, weeklyWorkoutTarget: action.payload };
 
     case 'SET_LEADERBOARD':
       return { ...state, leaderboard: action.payload };
@@ -154,6 +190,7 @@ export function AppProvider({ children }) {
                   calories: profile.nutritionTracker?.dailyCalorieTarget ?? initialState.nutritionTargets.calories,
                   protein:  profile.nutritionTracker?.dailyProteinTarget ?? initialState.nutritionTargets.protein,
                 },
+                weeklyWorkoutTarget: profile.workoutTracker?.weeklyTargetDays ?? 4,
                 dailyLog: {
                   food:      profile.nutritionTracker?.dailyConsumed ?? [],
                   exercises: profile.workoutTracker?.history ?? [],
@@ -223,14 +260,78 @@ export function AppProvider({ children }) {
     dispatch({ type: 'REMOVE_EXERCISE', payload: id });
   }, []);
 
-  const saveProfile = useCallback(async (profile) => {
-    dispatch({ type: 'SET_PROFILE', payload: profile });
-    // Profile (height/weight/age etc.) is currently stored client-side only
-    // and recalculated via Mifflin-St Jeor. A future enhancement would persist
-    // these to a /api/users/me/profile endpoint.
+  const editFood = useCallback(async (id, foodData) => {
+    dispatch({ type: 'UPDATE_FOOD', payload: { id, ...foodData } });
+    await api.updateFoodItem(id, foodData);
   }, []);
 
-  const value = { state, dispatch, addFood, removeFood, addExercise, removeExercise, saveProfile };
+  const editExercise = useCallback(async (id, exerciseData) => {
+    dispatch({ type: 'UPDATE_EXERCISE', payload: { id, ...exerciseData } });
+    await api.updateWorkoutSession(id, exerciseData);
+  }, []);
+
+  const saveProfile = useCallback(async (profile) => {
+    // 1. Optimistic local update — recalculates BMI & targets immediately
+    dispatch({ type: 'SET_PROFILE', payload: profile });
+
+    // 2. Persist to backend
+    if (!user?.id) return;
+    const updated = await api.updateProfile(user.id, profile);
+    // If backend echoes back updated userProfile, re-sync to stay consistent
+    if (updated?.userProfile) {
+      dispatch({ type: 'SET_PROFILE', payload: updated.userProfile });
+    }
+  }, [user?.id]);
+
+  /**
+   * Save manual nutrition targets (calories + protein) to the backend.
+   * Switches the context into "manual target" mode.
+   */
+  const saveNutritionTarget = useCallback(async (calories, protein) => {
+    // Optimistic update first
+    dispatch({ type: 'SET_MANUAL_TARGET', payload: { calories, protein } });
+
+    if (!user?.id) return;
+    const updated = await api.updateNutritionTarget(user.id, {
+      dailyCalorieTarget: calories,
+      dailyProteinTarget: protein,
+    });
+    // Sync from backend response to ensure consistency
+    if (updated?.nutritionTracker) {
+      dispatch({
+        type: 'SET_MANUAL_TARGET',
+        payload: {
+          calories: updated.nutritionTracker.dailyCalorieTarget,
+          protein:  updated.nutritionTracker.dailyProteinTarget,
+        },
+      });
+    }
+  }, [user?.id]);
+
+  /**
+   * Update the weekly workout target.
+   */
+  const saveWorkoutTarget = useCallback(async (weeklyTargetDays) => {
+    // Optimistic update
+    dispatch({ type: 'SET_WEEKLY_TARGET', payload: weeklyTargetDays });
+
+    if (!user?.id) return;
+    await api.updateWorkoutTarget(user.id, weeklyTargetDays);
+  }, [user?.id]);
+
+  const value = {
+    state,
+    dispatch,
+    addFood,
+    removeFood,
+    addExercise,
+    removeExercise,
+    saveProfile,
+    saveNutritionTarget,
+    saveWorkoutTarget,
+    editFood,
+    editExercise,
+  };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 

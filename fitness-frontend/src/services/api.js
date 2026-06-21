@@ -80,6 +80,33 @@ const api = {
   // Returns the full User entity (includes nutritionTracker, workoutTracker nested)
   getProfile: (userId) => safe(client.get(`/users/${userId}`)),
 
+  /**
+   * Persist physical profile (height, weight, age, gender, activity) to backend.
+   * Returns updated User entity on success, null on network error.
+   */
+  updateProfile: (userId, profileData) =>
+    safe(client.put(`/users/${userId}/profile`, profileData)),
+
+  /**
+   * Override daily nutrition targets (calories & protein) manually.
+   * Returns the updated User entity.
+   */
+  updateNutritionTarget: (userId, { dailyCalorieTarget, dailyProteinTarget }) =>
+    safe(client.put(`/users/${userId}/nutrition-target`, { dailyCalorieTarget, dailyProteinTarget })),
+
+  /**
+   * Update the user's weekly workout target (number of days per week).
+   */
+  updateWorkoutTarget: (userId, weeklyTargetDays) =>
+    safe(client.put(`/users/${userId}/workout-target`, { weeklyTargetDays })),
+
+  /**
+   * Change the authenticated user's password.
+   * Uses strictCall so the caller can handle errors (e.g. wrong current password).
+   */
+  changePassword: (userId, currentPassword, newPassword) =>
+    strictCall(client.put(`/users/${userId}/password`, { currentPassword, newPassword })),
+
   // ── Nutrition ───────────────────────────────────────────────────────────────
   /**
    * Log a food item for the authenticated user.
@@ -99,6 +126,11 @@ const api = {
    */
   deleteFoodItem: (id) => safe(client.delete(`/food-items/${id}`)),
 
+  /**
+   * Update an existing food item. Backend enforces ownership.
+   */
+  updateFoodItem: (id, data) => safe(client.put(`/food-items/${id}`, data)),
+
   // ── Gym ─────────────────────────────────────────────────────────────────────
   /**
    * Check in a workout session. Sends optional clientDate for streak tracking.
@@ -114,9 +146,22 @@ const api = {
    */
   getGymHistory: () => safe(client.get('/workout-sessions')),
 
+  /**
+   * Update an existing workout session (edit). Backend enforces ownership.
+   */
+  updateWorkoutSession: (id, data) => safe(client.put(`/workout-sessions/${id}`, data)),
+
+  // ── Account ──────────────────────────────────────────────────────────────────
+  /**
+   * Permanently delete the authenticated user's account (cascade deletes all data).
+   * Uses strictCall so the caller can handle errors.
+   */
+  deleteAccount: (userId) => strictCall(client.delete(`/users/${userId}`)),
+
   // ── Leaderboard ─────────────────────────────────────────────────────────────
   getLeaderboard: () => safe(client.get('/leaderboard')),
   getTopPlayers:  (limit = 3) => safe(client.get('/leaderboard/top', { params: { limit } })),
 };
 
 export default api;
+

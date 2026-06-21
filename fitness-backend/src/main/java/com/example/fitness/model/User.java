@@ -11,7 +11,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "users")
@@ -42,6 +44,33 @@ public class User implements UserDetails {
 
     @Column(name = "last_log_date")
     private LocalDate lastLogDate;
+
+    @Column(name = "leaderboard_visible", nullable = false)
+    private boolean leaderboardVisible = true;
+
+    // ── Physical profile fields ────────────────────────────────────────────────
+    /** Height in centimetres (nullable — user may not have filled the profile yet). */
+    @Column(name = "height")
+    private Double height;
+
+    /** Weight in kilograms (nullable). */
+    @Column(name = "weight")
+    private Double weight;
+
+    /** Age in years (nullable). */
+    @Column(name = "age")
+    private Integer age;
+
+    /** Biological gender: "male" or "female" (nullable). */
+    @Column(name = "gender")
+    private String gender;
+
+    /**
+     * Activity level for Mifflin-St Jeor multiplier.
+     * Values: "sedentary", "light", "active", "very_active" (nullable).
+     */
+    @Column(name = "activity_level")
+    private String activityLevel;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonManagedReference
@@ -166,6 +195,40 @@ public class User implements UserDetails {
 
     public LocalDate getLastLogDate() { return lastLogDate; }
     public void setLastLogDate(LocalDate lastLogDate) { this.lastLogDate = lastLogDate; }
+
+    public boolean isLeaderboardVisible() { return leaderboardVisible; }
+    public void setLeaderboardVisible(boolean leaderboardVisible) { this.leaderboardVisible = leaderboardVisible; }
+
+    // Physical profile getters/setters
+    public Double getHeight() { return height; }
+    public void setHeight(Double height) { this.height = height; }
+
+    public Double getWeight() { return weight; }
+    public void setWeight(Double weight) { this.weight = weight; }
+
+    public Integer getAge() { return age; }
+    public void setAge(Integer age) { this.age = age; }
+
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+
+    public String getActivityLevel() { return activityLevel; }
+    public void setActivityLevel(String activityLevel) { this.activityLevel = activityLevel; }
+
+    /**
+     * Virtual getter that returns physical profile fields as a nested map.
+     * This matches the shape AppContext.jsx expects: profile.userProfile.height etc.
+     */
+    public Map<String, Object> getUserProfile() {
+        Map<String, Object> profile = new HashMap<>();
+        profile.put("height",   height   != null ? height   : "");
+        profile.put("weight",   weight   != null ? weight   : "");
+        profile.put("age",      age      != null ? age      : "");
+        profile.put("gender",   gender   != null ? gender   : "male");
+        profile.put("activity", activityLevel != null ? activityLevel : "light");
+        profile.put("leaderboardVisible", leaderboardVisible);
+        return profile;
+    }
 
     public NutritionTracker getNutritionTracker() { return nutritionTracker; }
     public void setNutritionTracker(NutritionTracker nutritionTracker) {
