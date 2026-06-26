@@ -28,7 +28,7 @@ function PodiumBlock({ user, podium, rank, sortBy, delay }) {
 
   const displayValue =
     sortBy === 'streak' ? user.currentStreak :
-    sortBy === 'workouts' ? (user.workoutsThisWeek ?? 0) :
+    sortBy === 'workouts' ? (user.workoutTracker?.currentWeeklyWorkouts ?? 0) :
     user.totalPoints;
 
   const displayLabel =
@@ -97,7 +97,7 @@ export default function Leaderboard() {
 
   const sorted = [...state.leaderboard].sort((a, b) => {
     if (sortBy === 'streak')   return b.currentStreak - a.currentStreak;
-    if (sortBy === 'workouts') return (b.workoutsThisWeek ?? 0) - (a.workoutsThisWeek ?? 0);
+    if (sortBy === 'workouts') return (b.workoutTracker?.currentWeeklyWorkouts ?? 0) - (a.workoutTracker?.currentWeeklyWorkouts ?? 0);
     return b.totalPoints - a.totalPoints;
   });
 

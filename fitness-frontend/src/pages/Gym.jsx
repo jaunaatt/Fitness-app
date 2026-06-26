@@ -164,7 +164,7 @@ export default function Gym() {
       await editExercise(editingId, data);
       setToastMsg('Exercise updated ✓');
     } else {
-      await addExercise({ ...data, id: Date.now() });
+      await addExercise(data);
       setToastMsg('Exercise logged ✓');
     }
     

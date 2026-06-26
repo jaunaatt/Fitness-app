@@ -225,7 +225,6 @@ export function AppProvider({ children }) {
     const updated = await api.logFood(user.id, food, clientDate);
 
     // If the backend returns the updated user, sync the food list (which now
-    // includes backend-assigned IDs needed for deletion)
     if (updated?.nutritionTracker?.dailyConsumed) {
       dispatch({
         type: 'HYDRATE',
@@ -237,8 +236,13 @@ export function AppProvider({ children }) {
         },
       });
     }
+
+    const leaderboard = await api.getLeaderboard();
+    if (leaderboard) {
+      dispatch({ type: 'SET_LEADERBOARD', payload: leaderboard });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, state.dailyLog]);
 
   const removeFood = useCallback(async (foodId) => {
     // Optimistic update
@@ -252,9 +256,26 @@ export function AppProvider({ children }) {
     if (!session.isRestDay) dispatch({ type: 'BUMP_STREAK' });
 
     const clientDate = new Date().toISOString().slice(0, 10);
-    await api.checkInWorkout(user.id, session, clientDate);
+    const updated = await api.checkInWorkout(user.id, session, clientDate);
+
+    if (updated?.workoutTracker?.history) {
+      dispatch({
+        type: 'HYDRATE',
+        payload: {
+          dailyLog: {
+            ...state.dailyLog,
+            exercises: updated.workoutTracker.history,
+          },
+        },
+      });
+    }
+
+    const leaderboard = await api.getLeaderboard();
+    if (leaderboard) {
+      dispatch({ type: 'SET_LEADERBOARD', payload: leaderboard });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, state.dailyLog]);
 
   const removeExercise = useCallback((id) => {
     dispatch({ type: 'REMOVE_EXERCISE', payload: id });
