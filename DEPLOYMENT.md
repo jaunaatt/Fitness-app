@@ -46,7 +46,7 @@ To run the application locally in a production-like environment (with PostgreSQL
 1. Ensure Docker Desktop is running.
 2. From the `fitness-backend/` directory, run:
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
    This spins up the local Postgres container.
 3. Start the backend:
